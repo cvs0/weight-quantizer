@@ -55,7 +55,7 @@ class EvalConfig:
     model: str = "gpt2"
     output: str = "results/gpt2_wikitext2.json"
     context: int = 1024
-    stride: int = 1024
+    stride: int = 512
     calib_sequences: int = 64
     calib_seq_len: int = 128
     calib_batch: int = 8

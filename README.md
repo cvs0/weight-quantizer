@@ -134,7 +134,7 @@ Measurement run (downloads GPT-2 and WikiText-2 into the Hugging Face cache, not
 python -m ptqkit --model gpt2 --output results/gpt2_wikitext2.json
 ```
 
-Defaults: context 1024, stride 1024, 64 calibration sequences of length 128, batch 8, sequential activation order. `--activation-order fp32` uses one calibration pass. `--max-windows N` truncates perplexity; the published run does not set it.
+Defaults: context 1024, stride 512, 64 calibration sequences of length 128, batch 8, sequential activation order. `--activation-order fp32` uses one calibration pass. `--max-windows N` truncates perplexity; the published run does not set it.
 
 Perplexity is `exp(sum nll_i / N)`. The model drops `labels[:, 0]`. `N` is the number of remaining labels that are not `-100`. With stride < context, token indices `1 .. T-1` are each scored once. With stride = context, the first token of each chunk is not scored.
 
@@ -173,7 +173,91 @@ src/ptqkit/measure.py  perplexity, size, timing
 
 ## Measurements
 
-<!-- MEASURED_RESULTS -->
+CPU: Intel(R) Xeon(R) Processor family 6 model 207 stepping 2, 4 threads, ISA ['avx2', 'fma', 'avx512f'].
+MemTotal 16387280 KiB, MemAvailable 4919608 KiB at measurement start.
+Python 3.12.3, torch 2.14.1+cpu, BLAS `- Intel(R) MKL-DNN v3.12.0 (Git Hash 80afa71049cd69a3df32adcccb623b12cd7baa22)`.
+Kernel build: {'avx2': True, 'openmp': True}.
+Protocol: model `gpt2`, Salesforce/wikitext wikitext-2-raw-v1 test, context 1024, stride 512, calibration 64 x 128 from train, activation order `sequential`.
+Scored tokens: 287643. Windows: 561.
+
+| method | bits | sym | group | ppl | payload bytes | file bytes | matrix bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| fp32 | 32 |  |  | 25.1703 | 652148736 | 497813567 | 494128128 |
+| int8_tensor_sym_rtn | 8 | true | 0 | 28.5929 | 281552836 | 281634181 | 123532228 |
+| int8_tensor_asym_rtn | 8 | false | 0 | 26.7147 | 281552836 | 281634181 | 123532228 |
+| int8_channel_sym_rtn | 8 | true |  | 25.8959 | 282085444 | 282167109 | 124064836 |
+| int8_channel_asym_rtn | 8 | false |  | 26.0747 | 282085444 | 282167109 | 124064836 |
+| int4_channel_sym_rtn | 4 | true |  | 208451.4237 | 220319428 | 220401093 | 62298820 |
+| int4_channel_asym_rtn | 4 | false |  | 78216.9786 | 220319428 | 220401093 | 62298820 |
+| int4_g128_sym_rtn | 4 | true | 128 | 1702.0357 | 223647000 | 223728645 | 65626392 |
+| int4_g128_asym_rtn | 4 | false | 128 | 1309.4966 | 223647000 | 223728645 | 65626392 |
+| int4_g128_sym_gptq | 4 | true | 128 | 58.7966 | 223647000 | 223728645 | 65626392 |
+| int4_g128_sym_awq | 4 | true | 128 | 274.5014 | 223777560 | 223875175 | 65756952 |
+
+Matmul median latency. GFLOP/s = 2*B*M*K / time, dequant not counted.
+
+| layer | M | K | B | kind | median ms | GFLOP/s |
+| --- | --- | --- | --- | --- | --- | --- |
+| attn_qkv | 2304 | 768 | 1 | fp32 | 0.0333 | 106.13 |
+| attn_qkv | 2304 | 768 | 1 | int8 | 0.0950 | 37.27 |
+| attn_qkv | 2304 | 768 | 1 | int4 | 0.1006 | 35.19 |
+| attn_qkv | 2304 | 768 | 16 | fp32 | 0.1286 | 440.30 |
+| attn_qkv | 2304 | 768 | 16 | int8 | 0.3096 | 182.90 |
+| attn_qkv | 2304 | 768 | 16 | int4 | 0.2798 | 202.38 |
+| attn_qkv | 2304 | 768 | 128 | fp32 | 0.5476 | 827.19 |
+| attn_qkv | 2304 | 768 | 128 | int8 | 2.1602 | 209.69 |
+| attn_qkv | 2304 | 768 | 128 | int4 | 1.8995 | 238.47 |
+| attn_out | 768 | 768 | 1 | fp32 | 0.0117 | 100.95 |
+| attn_out | 768 | 768 | 1 | int8 | 0.0400 | 29.51 |
+| attn_out | 768 | 768 | 1 | int4 | 0.0417 | 28.26 |
+| attn_out | 768 | 768 | 16 | fp32 | 0.0505 | 374.01 |
+| attn_out | 768 | 768 | 16 | int8 | 0.1009 | 187.02 |
+| attn_out | 768 | 768 | 16 | int4 | 0.1011 | 186.65 |
+| attn_out | 768 | 768 | 128 | fp32 | 0.1965 | 768.54 |
+| attn_out | 768 | 768 | 128 | int8 | 0.6397 | 236.03 |
+| attn_out | 768 | 768 | 128 | int4 | 0.6427 | 234.95 |
+| mlp_up | 3072 | 768 | 1 | fp32 | 0.0522 | 90.47 |
+| mlp_up | 3072 | 768 | 1 | int8 | 0.1811 | 26.05 |
+| mlp_up | 3072 | 768 | 1 | int4 | 0.1809 | 26.08 |
+| mlp_up | 3072 | 768 | 16 | fp32 | 0.1895 | 398.39 |
+| mlp_up | 3072 | 768 | 16 | int8 | 0.3651 | 206.76 |
+| mlp_up | 3072 | 768 | 16 | int4 | 0.3706 | 203.71 |
+| mlp_up | 3072 | 768 | 128 | fp32 | 0.7374 | 819.05 |
+| mlp_up | 3072 | 768 | 128 | int8 | 2.6210 | 230.44 |
+| mlp_up | 3072 | 768 | 128 | int4 | 2.6764 | 225.67 |
+| mlp_down | 768 | 3072 | 1 | fp32 | 0.0524 | 90.04 |
+| mlp_down | 768 | 3072 | 1 | int8 | 0.1316 | 35.87 |
+| mlp_down | 768 | 3072 | 1 | int4 | 0.1338 | 35.27 |
+| mlp_down | 768 | 3072 | 16 | fp32 | 0.3853 | 195.95 |
+| mlp_down | 768 | 3072 | 16 | int8 | 0.3858 | 195.69 |
+| mlp_down | 768 | 3072 | 16 | int4 | 0.3872 | 195.01 |
+| mlp_down | 768 | 3072 | 128 | fp32 | 0.8224 | 734.37 |
+| mlp_down | 768 | 3072 | 128 | int8 | 3.1428 | 192.18 |
+| mlp_down | 768 | 3072 | 128 | int4 | 3.1368 | 192.55 |
+
+| model | seq | impl | median ms |
+| --- | --- | --- | --- |
+| int8_channel_sym_rtn | 1 | kernel | 10.5362 |
+| int8_channel_sym_rtn | 128 | kernel | 165.7352 |
+| int4_g128_sym_rtn | 1 | kernel | 10.5311 |
+| int4_g128_sym_rtn | 128 | kernel | 163.2076 |
+| fp32 | 1 | fp32 | 13.6840 |
+| fp32 | 128 | fp32 | 65.8341 |
+
+Max abs logit gap, kernel vs reference dequant, shape [1, 8]:
+- int8_channel_sym_rtn: 4.577637e-05
+- int4_g128_sym_rtn: 7.247925e-05
+
+Kernel compiled with g++ 13.3.0, flags `-O3 -fopenmp -mavx2 -mfma`.
+
+Perplexity uses a cached fp32 reconstruction of the quantized weights. `payload bytes` sums tensor nbytes. `file bytes` is the `torch.save` size. The fp32 file is smaller than its payload because the archive compresses fp32 tensors. `matrix bytes` counts codes plus fp16 scales, zeros, and channel scales, and leaves out embeddings, norms, and biases.
+
+Mean selected AWQ alpha across quantized modules: 0.244898.
+
+![perplexity and file size](results/gpt2_wikitext2.png)
+
+A model near 1B parameters was not measured. MemAvailable at the start of this run was 4919608 KiB.
+
 
 ## License
 

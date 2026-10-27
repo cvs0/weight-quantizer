@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--model", default="gpt2")
     parser.add_argument("--output", default="results/gpt2_wikitext2.json")
     parser.add_argument("--context", type=int, default=1024)
-    parser.add_argument("--stride", type=int, default=1024)
+    parser.add_argument("--stride", type=int, default=512)
     parser.add_argument("--calib-sequences", type=int, default=64)
     parser.add_argument("--calib-seq-len", type=int, default=128)
     parser.add_argument("--calib-batch", type=int, default=8)

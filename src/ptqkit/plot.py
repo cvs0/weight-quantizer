@@ -38,11 +38,22 @@ def render_markdown(data: dict[str, Any]) -> str:
         f"context {protocol.get('context')}, stride {protocol.get('stride')}, "
         f"calibration {protocol.get('calib_sequences')} x {protocol.get('calib_seq_len')} "
         f"from train, activation order `{protocol.get('activation_order')}`.",
-        "",
-        "| method | bits | sym | group | ppl | payload bytes | file bytes | matrix bytes |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for row in _ordered_methods(data):
+    rows = _ordered_methods(data)
+    token_counts = {int(row["tokens"]) for row in rows if "tokens" in row}
+    window_counts = {int(row["windows"]) for row in rows if "windows" in row}
+    if len(token_counts) == 1 and len(window_counts) == 1:
+        lines.append(
+            f"Scored tokens: {next(iter(token_counts))}. Windows: {next(iter(window_counts))}."
+        )
+    lines.extend(
+        [
+            "",
+            "| method | bits | sym | group | ppl | payload bytes | file bytes | matrix bytes |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for row in rows:
         sym = row.get("symmetric")
         sym_s = "" if sym is None else str(bool(sym)).lower()
         group = row.get("group_size")
@@ -101,8 +112,9 @@ def plot_results(json_path: str, png_path: str) -> None:
     mib = [int(row["file_bytes"]) / (1024 * 1024) for row in rows]
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
     axes[0].bar(range(len(names)), ppl, color="#222222")
+    axes[0].set_yscale("log")
     axes[0].set_xticks(range(len(names)), names, rotation=60, ha="right", fontsize=8)
-    axes[0].set_ylabel("perplexity")
+    axes[0].set_ylabel("perplexity, log scale")
     axes[1].bar(range(len(names)), mib, color="#222222")
     axes[1].set_xticks(range(len(names)), names, rotation=60, ha="right", fontsize=8)
     axes[1].set_ylabel("torch.save file MiB")
