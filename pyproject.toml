@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel", "pybind11>=2.11"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ptqkit"
+version = "0.1.0"
+description = "Post-training int4 and int8 quantization of linear weights"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "ptqkit contributors" }]
+dependencies = ["torch>=2.2", "numpy>=1.24"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+]
+
+[project.optional-dependencies]
+eval = ["transformers>=4.40", "datasets>=2.18", "matplotlib>=3.8"]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11", "pybind11>=2.11"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ptqkit = ["py.typed", "_kernels.pyi", "csrc/*.cpp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ptqkit"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+packages = ["ptqkit"]
+mypy_path = "src"
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["datasets", "datasets.*", "transformers", "transformers.*", "matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
