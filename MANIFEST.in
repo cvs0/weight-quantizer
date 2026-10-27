@@ -1,0 +1,5 @@
+include LICENSE README.md
+include src/ptqkit/py.typed
+include src/ptqkit/_kernels.pyi
+include src/ptqkit/csrc/*.cpp
+recursive-include tests *.py
